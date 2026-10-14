@@ -24,3 +24,8 @@ processed_data/
 ./ekf_debug.logunwanted_file.txt
 ekf_debug.log
 .DS_Store   
+
+# Agent instructions and config (kept local, not version-controlled)
+AGENTS.md
+CLAUDE.md
+.claude/
