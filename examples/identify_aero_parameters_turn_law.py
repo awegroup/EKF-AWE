@@ -56,7 +56,7 @@ PHASES_TO_FIT = [1, 2, 3, 4]  # only reel-out (1) and reel-in (3)
 PALETTE = get_color_list()
 
 # ── Load data ─────────────────────────────────────────────────────────────────
-results, flight_data, _ = read_results("2026", "05", "11", "v11", addition="")
+results, flight_data, _ = read_results("2019", "10", "08", "v3", addition="")
 results = results[CUT:-CUT].reset_index(drop=True)
 flight_data = flight_data[CUT:-CUT].reset_index(drop=True)
 
