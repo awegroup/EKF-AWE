@@ -175,6 +175,12 @@ If you use this project in your research, please consider citing it. Citation de
 
 ---
 
+## Acknowledgements
+
+This work was supported by the European Union's Horizon Europe programme (Climate, Energy and Mobility) through the MERIDIONAL project, grant agreement No. 101084216.
+
+---
+
 ## License
 
 This project is licensed under the MIT License. See the [LICENSE](LICENSE) file for details.
