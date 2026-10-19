@@ -6,8 +6,8 @@ Each kite has a folder `data/<KITE-NAME>/` holding
 - one or more awesIO-validated `system*.yaml` files with the physical
   properties of the hardware. A kite can have several system variants
   depending on what it was flown with — e.g. `LEI-V3-KITE/` carries
-  `system_flown_2019.yaml` (22.75 kg KCU, 10 mm tether) and
-  `system_flown_2025.yaml` (23.3 kg KCU, 13.5 mm tether); when a folder
+  `system_flown_2019.yaml` (22.0 kg KCU with onboard turbine, 10 mm tether) and
+  `system_flown_2025.yaml` (23.25 kg KCU, 13.5 mm tether); when a folder
   holds several, `load_config` asks which hardware the EKF should assume.
 
 `awes_ekf.setup.settings.load_config()` prompts for the folder, merges the

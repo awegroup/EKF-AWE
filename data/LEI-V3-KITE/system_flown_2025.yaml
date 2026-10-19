@@ -1,6 +1,6 @@
-# As-flown configuration of the 2025-10-09 flight: KCU mass 23.3 kg
-# (total ~36.88 kg), 13.5 mm tether.
-# Differs from system_flown_2019.yaml ONLY in those two hardware numbers --
+# As-flown configuration of the 2025-10-09 flight: KCU 23.25 kg
+# (0.95 x 0.46 m datasheet, no onboard turbine; total ~36.83 kg), 13.5 mm tether.
+# Differs from system_flown_2019.yaml ONLY in the KCU and the tether --
 # the wing/bridle structure, the winch limits and the tether material are
 # carried over from the 2019 file and are not independently re-measured for
 # 2025. For optimization studies use system.yaml (KCU 8.4 kg) instead.
@@ -74,9 +74,9 @@ components:
       type: kite_control_unit
       version: 1.0
       structure:
-        length: 1.2      # m
-        diameter: 0.62   # m
-        mass: 23.3       # kg, as flown 2025-10-09
+        length: 0.95     # m, datasheet 2025
+        diameter: 0.46   # m, datasheet 2025
+        mass: 23.25      # kg, as flown 2025-10-09 (datasheet)
         center_of_mass: [0.0, 0.0, 0.0]  # m, same as bridle_point_node
   tethers:
   - name: LEI-V3 Tether

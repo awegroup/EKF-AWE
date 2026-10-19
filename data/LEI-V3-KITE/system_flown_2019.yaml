@@ -1,5 +1,5 @@
-# As-flown configuration of the 2019-10-08 flight: KCU mass 22.75 kg
-# (total ~36.33 kg), 10 mm tether.
+# As-flown configuration of the 2019-10-08 flight: KCU 22.0 kg (19.2 kg
+# KCU+cover + 2.8 kg onboard wind turbine; total ~35.58 kg), 10 mm tether.
 # The 2025-10-09 flight used a different KCU and tether -- see
 # system_flown_2025.yaml. For optimization studies use system.yaml
 # (KCU 8.4 kg) instead.
@@ -74,9 +74,18 @@ components:
       version: 1.0
       structure:
         length: 1.0      # m
-        diameter: 0.48   # m
-        mass: 22.75        # kg
+        # Area-equivalent diameter of the datasheet's 0.25 m2 KCU frontal
+        # area (setup/kcu.py uses pi*(d/2)^2 as the frontal area).
+        diameter: 0.5642 # m
+        mass: 22.0       # kg, 19.2 KCU+cover + 2.8 onboard wind turbine
         center_of_mass: [0.0, 0.0, 0.0]  # m, same as bridle_point_node
+      # Onboard ram-air turbine (2019 flight ONLY -- the 2025 KCU carried
+      # none), DRAG only: its mass is inside the KCU mass above. Mounted on top
+      # of the KCU facing the apparent wind, so its thrust C_T pi (D/2)^2 joins
+      # the KCU crossflow drag (setup/kcu.py).
+      turbine:
+        diameter: 0.50            # m, rotor
+        thrust_coefficient: 0.85  # -, operating (Betz 0.89; freewheel ~1.2)
   tethers:
   - name: LEI-V3 Tether
     type: non_conductive_tether

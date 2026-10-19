@@ -212,7 +212,6 @@ class Tether:
             vaj = vwj - vj  # Apparent wind velocity
 
             vajp = ca.dot(vaj, ej) * ej  # Parallel to tether element
-            # TODO: check whether to use vajn
             vajn = vaj - vajp  # Perpendicular to tether element
 
             vaj_sq = ca.norm_2(vaj) ** 2
@@ -275,16 +274,14 @@ class Tether:
                     )  # Bridle lines lift
                     lift_bridles = lift_bridles * dir_L
 
+                    # KCU (+ onboard turbine) drag: each drag area on its
+                    # own apparent-wind component about the element axis.
                     dp_kcu = (
-                        0.5 * rho * ca.norm_2(vajp) * vajp * kcu.cdp * kcu.Ap
-                    )  # Adding kcu drag perpendicular to kcu
+                        0.5 * rho * ca.norm_2(vajn) * vajn * kcu.cd_area_crossflow
+                    )  # Flow across the KCU (broadside + turbine thrust)
                     dt_kcu = (
-                        0.5 * rho * ca.norm_2(vajn) * vajn * kcu.cdt * kcu.At
-                    )  # Adding kcu drag parallel to kcu
-                    th = (
-                        -0.5 * rho * vaj_sq * ca.pi * 0.2**2 * 0.4
-                    )  # Add thrust of a wind turbine if present
-                    # D_turbine = 0.5*rho*ca.norm_2(vaj)**2*ca.pi*0.2**2*1
+                        0.5 * rho * ca.norm_2(vajp) * vajp * kcu.cd_area_axial
+                    )  # Flow along the KCU (frontal)
                     D_kcu = ca.norm_2(dp_kcu + dt_kcu)
                     faj = (
                         dp_kcu

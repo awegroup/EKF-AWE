@@ -28,12 +28,31 @@ class KCU:
         self.total_length_bridle_lines: float = float(kwargs.get("total_length_bridle_lines") or 0.0)
         self.diameter_bridle_lines: float = float(kwargs.get("diameter_bridle_lines") or 0.0)
 
-        # Example: Interpolate Cd for tangential flow at a specific L/D
+        # Optional onboard wind turbine (rotor diameter 0 = none). Its
+        # momentum-theory thrust C_T * pi (D/2)^2 is its drag.
+        self.turbine_diameter: float = float(kwargs.get("turbine_diameter") or 0.0)
+        self.turbine_thrust_coefficient: float = float(
+            kwargs.get("turbine_thrust_coefficient") or 0.0
+        )
+
+        # cdt: flow ALONG the KCU axis, on the frontal area At (cdt(L/D -> 0)
+        # = 1.15 is a disc facing the flow). cdp: flow ACROSS the axis, on the
+        # broadside area Ap (cdp(L/D -> inf) = 1.2 is an infinite cylinder).
         self.cdt = splev(self.length / self.diameter, KCU.spline_t)
         self.cdp = splev(self.length / self.diameter, KCU.spline_p)
 
-        self.At = np.pi * (self.diameter / 2) ** 2  # Calculate area of the KCU
-        self.Ap = self.diameter * self.length  # Calculate area of the KCU
+        self.At = np.pi * (self.diameter / 2) ** 2  # Frontal area of the KCU
+        self.Ap = self.diameter * self.length  # Broadside area of the KCU
+
+        # Drag areas [m^2] the tether model applies to the axial and crossflow
+        # apparent-wind components at the KCU. The turbine sits on top of the
+        # KCU facing the apparent wind, shadowed from the along-tether flow,
+        # so its thrust joins the crossflow area only.
+        self.area_turbine = np.pi * (self.turbine_diameter / 2) ** 2
+        self.cd_area_axial = float(self.cdt * self.At)
+        self.cd_area_crossflow = float(
+            self.cdp * self.Ap + self.turbine_thrust_coefficient * self.area_turbine
+        )
 
     def calculate_cd(self, ld):
         ##

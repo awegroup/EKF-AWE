@@ -51,6 +51,18 @@ def _distance_kcu_kite(wing_struct, control_sys_struct):
     return control_sys_struct.get("distance_kcu_kite") or 0.0
 
 
+def _turbine_config(control_system):
+    """KCU kwargs of the optional onboard turbine (control_system.turbine).
+
+    No ``turbine`` block means no turbine: both values 0, no drag added.
+    """
+    turbine = control_system.get("turbine") or {}
+    return {
+        "turbine_diameter": turbine.get("diameter", 0.0),
+        "turbine_thrust_coefficient": turbine.get("thrust_coefficient", 0.0),
+    }
+
+
 def _prompt_path(message):
     try:
         from prompt_toolkit import prompt
@@ -163,6 +175,7 @@ def load_config(config_folder=None):
             "total_nominal_line_length", 0.0
         ),
         "diameter_bridle_lines": bridle_struct.get("avg_line_diameter", 0.0),
+        **_turbine_config(kite_node.get("control_system", {})),
     }
     config_data["tether"] = {
         "material_name": tether_struct.get("material", {}).get("type", "Dyneema-SK78"),
