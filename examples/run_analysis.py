@@ -152,7 +152,53 @@ class AnalyzeAweFromCsvLog:
             print("No time filtering applied.")
 
         # %% Initialize EKF
-        simConfig = SimulationConfig(**self.config_data["simulation_parameters"])
+        sim_parameters = dict(self.config_data["simulation_parameters"])
+        by_date = sim_parameters.pop("initial_wind_velocity_by_date", None) or {}
+        coeffs_by_date = (
+            sim_parameters.pop("initial_coefficients_by_date", None) or {}
+        )
+        params_by_date = (
+            sim_parameters.pop("simulation_parameters_by_date", None) or {}
+        )
+        flight_date = f"{year}-{month}-{day}"
+        # Per-flight overrides of arbitrary simulation_parameters keys (e.g.
+        # the 2017 flights disable the apparent-windspeed measurement: no
+        # pitot flew). Dict values merge one level deep so a measurements
+        # override only touches the keys it names.
+        overrides = params_by_date.get(flight_date) or {}
+        for key, value in overrides.items():
+            if isinstance(value, dict) and isinstance(sim_parameters.get(key), dict):
+                sim_parameters[key] = {**sim_parameters[key], **value}
+            else:
+                sim_parameters[key] = value
+        if overrides:
+            print(
+                f"Simulation-parameter overrides for {flight_date}: {overrides} "
+                "(per-flight override from ekf_config.yaml)"
+            )
+        # Aero-coefficient seed for find_initial_state_vector (CL/CD/CS),
+        # companion of the wind seed below: the coefficient states converge in
+        # seconds rather than minutes, but on a record that starts at launch
+        # even that transient lands on flight data.
+        initial_coeffs = dict(coeffs_by_date.get(flight_date) or {})
+        if initial_coeffs:
+            print(
+                f"Initial coefficient seed for {flight_date}: {initial_coeffs} "
+                "(per-flight override from ekf_config.yaml)"
+            )
+        if flight_date in by_date:
+            # The filter walks its wind state in from this guess, and a guess
+            # pointing the wrong way costs FLIGHT time, not spin-up time: a
+            # record that starts AT launch (2025-10-09) has no lead-in to burn,
+            # so the transient lands on the first pumping cycle. See the config
+            # note next to the key.
+            sim_parameters["initial_wind_velocity"] = list(by_date[flight_date])
+            print(
+                f"Initial wind velocity for {flight_date}: "
+                f"{sim_parameters['initial_wind_velocity']} "
+                "(per-flight override from ekf_config.yaml)"
+            )
+        simConfig = SimulationConfig(**sim_parameters)
 
         # Create system components
         kite = PointMassEKF(simConfig, **self.config_data["kite"])
@@ -178,6 +224,7 @@ class AnalyzeAweFromCsvLog:
             ekf_input_list[0],
             simConfig,
             wind_velocity=simConfig.initial_wind_velocity,
+            **initial_coeffs,
         )
 
         ekf, ekf_input_list = initialize_ekf(
@@ -209,7 +256,17 @@ class AnalyzeAweFromCsvLog:
                 print(e)
                 try:
                     print("Integration error at iteration: ", k)
-                    x0 = find_initial_state_vector(tether, ekf_input, simConfig)
+                    # Re-seed with the SAME wind the run was configured with:
+                    # without it the recovery silently fell back to the
+                    # function default [1e-3, 8, 0] and re-injected a wind
+                    # transient mid-flight (found 2026-08-27).
+                    x0 = find_initial_state_vector(
+                        tether,
+                        ekf_input,
+                        simConfig,
+                        wind_velocity=simConfig.initial_wind_velocity,
+                        **initial_coeffs,
+                    )
                 except:
                     print("Tether model error at iteration: ", k)
                     x0 = ekf.x_k1_k1
