@@ -2,16 +2,28 @@ import numpy as np
 import pandas as pd
 import os
 from pathlib import Path
+from typing import Optional
 from awes_ekf.utils import llh_to_enu
 
 
-def load_log_file(log_directory: Path, log_date: str) -> pd.DataFrame:
-    all_logs = os.listdir(log_directory)
-    log_path = ""
-    for log in all_logs:
-        if log.startswith(log_date):
-            log_path = f"{log_directory}/{log}"
-            break
+def find_log_path(
+    log_directory: Path, log_date: str, log_filename: Optional[str] = None
+) -> str:
+    """Resolve the raw log to read: the exact selected file when the caller
+    provides one, otherwise the first file carrying the date in its name
+    (which is not always the leading token, e.g. DA_2017-03-30_FL01_*)."""
+    if log_filename and (Path(log_directory) / log_filename).exists():
+        return f"{log_directory}/{log_filename}"
+    for log in os.listdir(log_directory):
+        if log_date in log:
+            return f"{log_directory}/{log}"
+    raise FileNotFoundError(f"No flight log for {log_date} in {log_directory}")
+
+
+def load_log_file(
+    log_directory: Path, log_date: str, log_filename: Optional[str] = None
+) -> pd.DataFrame:
+    log_path = find_log_path(log_directory, log_date, log_filename)
     delimiter = detect_delimiter(log_path)
     log = pd.read_csv(log_path, delimiter=delimiter, low_memory=False)
     log = log[log["kite_height"] > 50]  # Select indexes where kite is flying
@@ -152,7 +164,7 @@ def save_flight_data(
 
 def process_data(config_data: dict, log_directory: Path) -> pd.DataFrame:
     log_date = f'{config_data["year"]}-{config_data["month"]}-{config_data["day"]}'
-    log = load_log_file(log_directory, log_date)
+    log = load_log_file(log_directory, log_date, config_data.get("log_filename"))
     window_size = 20
     dt = log["time"].iloc[1] - log["time"].iloc[0]
     log = log.reset_index()
@@ -174,7 +186,7 @@ def process_data(config_data: dict, log_directory: Path) -> pd.DataFrame:
             flight_data["kite_position_y"],
             flight_data["kite_position_z"],
         ) = (east, north, up)
-    except:
+    except Exception:
         flight_data["kite_position_x"] = log["kite_pos_east"]
         flight_data["kite_position_y"] = log["kite_pos_north"]
         flight_data["kite_position_z"] = log["kite_height"]
@@ -191,7 +203,7 @@ def process_data(config_data: dict, log_directory: Path) -> pd.DataFrame:
             log["gps_log_vel_n_m_s"],
             -log["gps_log_vel_d_m_s"],
         )
-    except:
+    except Exception:
         fused_kite_data = fuse_sensor_data(log, kite_sensors, "kite", dt, window_size)
         flight_data = flight_data.assign(**fused_kite_data)
 
@@ -243,7 +255,7 @@ def process_data(config_data: dict, log_directory: Path) -> pd.DataFrame:
         flight_data["tether_elevation_ground"] = log[
             "ground_tether_elevation_angle_rad"
         ]
-    except:
+    except Exception:
         flight_data["tether_azimuth_ground"] = log["kite_azimuth"]
         flight_data["tether_elevation_ground"] = log["kite_elevation"]
 

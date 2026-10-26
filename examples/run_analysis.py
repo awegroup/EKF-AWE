@@ -301,23 +301,32 @@ def main() -> None:
     selected_flight = available_flights[selected_flight_index]
     print(f"Selected flight: {selected_flight.name}")
 
-    # Extract the date part from the filename
-    filename_parts = selected_flight.stem.split("_")
-    date_str = filename_parts[0]  # "2021-10-07"
-    time_str = filename_parts[1]  # "19-38-15"
-
-    try:
-        date = datetime.strptime(date_str, "%Y-%m-%d").date()
-    except ValueError:
-        print(f"Error: Invalid or missing date format in the filename: {date_str}")
+    # Extract the date from the filename. The date is not always the first
+    # token: 2019/2025 logs are "2019-10-08_11-36-20_V3.csv" but the 2017
+    # Valkenburg logs are "DA_2017-03-30_FL01_11-30-29_12-03-06.csv".
+    date = None
+    for part in selected_flight.stem.split("_"):
+        try:
+            date = datetime.strptime(part, "%Y-%m-%d").date()
+            break
+        except ValueError:
+            continue
+    if date is None:
+        sys.exit(
+            f"Error: no YYYY-MM-DD date found in the filename: {selected_flight.name}"
+        )
 
     config_data = (
         load_config()
     )  # Todo: In this function we should have a check if the config has all required data.
 
+    # Hand the exact selection to the preprocessor: matching by date alone is
+    # ambiguous when one date has several flights (2017 FL01/FL02).
+    config_data["log_filename"] = selected_flight.name
+
     print("Starting analysis with:")
     print(f"Kite Model: {config_data['kite']['model_name']}")
-    print(f"Date: {date_str}, Time: {time_str}")
+    print(f"Date: {date.isoformat()}, Log file: {selected_flight.name}")
     print(f"Log directory: {log_dir}")
 
     AnalyzeAweFromCsvLog(config_data=config_data, date=date, log_directory=log_dir)
