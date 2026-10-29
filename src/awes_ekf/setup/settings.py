@@ -1,3 +1,5 @@
+import warnings
+
 import yaml
 import numpy as np
 from dataclasses import dataclass
@@ -11,6 +13,17 @@ g = 9.81  # Gravity acceleration [m/s^2]
 z0 = 0.01  # Surface roughness [m]
 
 _EKF_CONFIG_NAME = "ekf_config.yaml"
+
+
+def validate_system_config(system_config):
+    """Check a system config against the awesIO ``system_schema``.
+
+    A violation is reported as a UserWarning by awesIO (``restrictive=False``)
+    and the file is still used, so a run is never stopped by the schema.
+    """
+    from awesio.validator import validate
+
+    validate(system_config, restrictive=False)
 
 
 def get_kite(system_config):
@@ -51,15 +64,49 @@ def _distance_kcu_kite(wing_struct, control_sys_struct):
     return control_sys_struct.get("distance_kcu_kite") or 0.0
 
 
+#: Thrust coefficient of the operating onboard turbine on its swept area
+#: (Betz 0.89; AWETrim's kcu_drag.CT_TURBINE_OPERATING). Aerodynamic, so not
+#: in the awesIO hardware file.
+CT_TURBINE_OPERATING = 0.85
+
+
+def _turbine_structure(control_system):
+    """``structure`` of the optional awesIO ``control_system.turbine`` ({} if none).
+
+    The pre-awesIO flat ``turbine: {diameter, thrust_coefficient}`` is read as a
+    rotor diameter alone (its mass was inside the KCU mass).
+    """
+    turbine = control_system.get("turbine") or {}
+    if "structure" not in turbine and "diameter" in turbine:
+        warnings.warn(
+            "control_system.turbine {diameter, thrust_coefficient} is the "
+            "pre-awesIO layout; write turbine.structure {rotor_diameter, mass, "
+            "position_KA} and take the turbine mass out of the KCU mass.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        return {"rotor_diameter": turbine["diameter"]}
+    return turbine.get("structure") or {}
+
+
+def _kcu_mass(control_system):
+    """Mass lumped at the KCU: its body plus the onboard turbine's own mass.
+
+    awesIO states the two separately; the turbine is lumped at the KCU.
+    """
+    body = control_system.get("structure", {}).get("mass", 0.0) or 0.0
+    return body + (_turbine_structure(control_system).get("mass", 0.0) or 0.0)
+
+
 def _turbine_config(control_system):
     """KCU kwargs of the optional onboard turbine (control_system.turbine).
 
     No ``turbine`` block means no turbine: both values 0, no drag added.
     """
-    turbine = control_system.get("turbine") or {}
+    diameter = _turbine_structure(control_system).get("rotor_diameter", 0.0) or 0.0
     return {
-        "turbine_diameter": turbine.get("diameter", 0.0),
-        "turbine_thrust_coefficient": turbine.get("thrust_coefficient", 0.0),
+        "turbine_diameter": diameter,
+        "turbine_thrust_coefficient": CT_TURBINE_OPERATING if diameter else 0.0,
     }
 
 
@@ -167,6 +214,9 @@ def load_config(config_folder=None, system_file=None):
         config_data = yaml.safe_load(file)
     with open(system_yaml_path, "r", encoding="utf-8") as file:
         system_config = yaml.safe_load(file)
+    # The system file is an awesIO system_schema file: a violation warns
+    # (restrictive=False) rather than stopping the run.
+    validate_system_config(system_config)
 
     kite_node = get_kite(system_config)
     wing_struct = kite_node.get("wing", {}).get("structure", {})
@@ -189,7 +239,7 @@ def load_config(config_folder=None, system_file=None):
     config_data["kcu"] = {
         "length": control_sys_struct.get("length", 1.0),
         "diameter": control_sys_struct.get("diameter", 0.48),
-        "mass": control_sys_struct.get("mass", 0.0),
+        "mass": _kcu_mass(kite_node.get("control_system", {})),
         "distance_kcu_kite": _distance_kcu_kite(wing_struct, control_sys_struct),
         "total_length_bridle_lines": bridle_struct.get(
             "total_nominal_line_length", 0.0

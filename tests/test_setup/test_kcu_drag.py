@@ -24,7 +24,7 @@ import pytest
 
 import awes_ekf.setup.tether as tether_mod
 from awes_ekf.setup.kcu import KCU
-from awes_ekf.setup.settings import ObservationData, _turbine_config
+from awes_ekf.setup.settings import ObservationData, _kcu_mass, _turbine_config
 from awes_ekf.setup.tether import Tether
 
 LEI_V3_KCU = dict(
@@ -117,8 +117,21 @@ def test_no_turbine_block_means_no_turbine():
         "turbine_diameter": 0.0,
         "turbine_thrust_coefficient": 0.0,
     }
-    cfg = _turbine_config({"turbine": {"diameter": 0.5, "thrust_coefficient": 0.85}})
+    cfg = _turbine_config(
+        {"turbine": {"structure": {"rotor_diameter": 0.5, "mass": 2.8}}}
+    )
+    assert cfg["turbine_thrust_coefficient"] == pytest.approx(0.85)
     assert KCU(**LEI_V3_KCU, **cfg).area_turbine == pytest.approx(np.pi * 0.25**2)
+
+
+def test_kcu_mass_adds_the_turbine_mass_once():
+    """awesIO states the turbine mass apart from the KCU's; the EKF lumps both."""
+    control_system = {
+        "structure": {"mass": 19.2},
+        "turbine": {"structure": {"rotor_diameter": 0.5, "mass": 2.8}},
+    }
+    assert _kcu_mass(control_system) == pytest.approx(22.0)
+    assert _kcu_mass({"structure": {"mass": 19.2}}) == pytest.approx(19.2)
 
 
 @pytest.mark.parametrize("turbine_diameter", [0.0, 0.5])

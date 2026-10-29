@@ -87,18 +87,24 @@ components:
         # Area-equivalent diameter of the datasheet's 0.25 m² KCU frontal
         # area (kcu_drag uses pi*(d/2)^2 as the frontal area): d = 0.5642 m.
         diameter: 0.5642 # m
-        mass: 22.0       # kg, 19.2 KCU+cover + 2.8 onboard wind turbine
+        mass: 19.2       # kg, KCU+cover WITHOUT the turbine (its mass is below)
         center_of_mass: [0.0, 0.0, 0.0]  # m, same as bridle_point_node
       # Onboard 4-bladed ram-air turbine (2019 flight ONLY -- the 2025 KCU
-      # carried none), DRAG only: its mass is inside the KCU mass above.
+      # carried none). awesIO keeps its mass separate; the EKF lumps it into
+      # the KCU (setup.settings._kcu_mass: 19.2 + 2.8 = 22.0 kg).
       # Mounted ON TOP of the KCU facing the apparent wind: its
-      # momentum-theory thrust C_T on the swept area joins the KCU CROSSFLOW
-      # drag; the along-tether flow is shadowed by the KCU body, so it adds
-      # nothing axially -- awetrim.aerodynamics.kcu_drag (added 2026-09-04;
-      # trim A/B: reel-out v_tau/F_t land ~on the flight).
+      # momentum-theory thrust (C_T = settings.CT_TURBINE_OPERATING, 0.85)
+      # on the swept area joins the KCU CROSSFLOW drag; the along-tether flow
+      # is shadowed by the KCU body, so it adds nothing axially.
       turbine:
-        diameter: 0.50            # m, rotor
-        thrust_coefficient: 0.85  # -, operating (Betz 0.89; freewheel ~1.2)
+        name: LEI-V3 KCU turbine
+        type: horizontal_axis_turbine
+        version: 1.0
+        structure:
+          rotor_diameter: 0.50       # m
+          number_of_blades: 4
+          mass: 2.8                  # kg, NOT in the KCU mass above
+          position_KA: [0.0, 0.0, 0.5]  # m, hub; ESTIMATE (top of the 1.0 m KCU), not measured
   tethers:
   - name: LEI-V3 Tether
     type: non_conductive_tether

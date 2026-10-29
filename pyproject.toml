@@ -25,4 +25,5 @@ dependencies = [
     "seaborn",
     "dataclasses",
     "h5py",
+    "awesIO @ git+https://github.com/awegroup/awesIO.git@5799a2dbd3e74c83914dae342aa6d9a43b2180e1",
 ]
