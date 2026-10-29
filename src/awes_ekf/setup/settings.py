@@ -74,8 +74,13 @@ def _prompt_path(message):
 
 
 # Load the configuration folder
-def load_config(config_folder=None):
+def load_config(config_folder=None, system_file=None):
     """Load and merge a kite configuration from a config folder.
+
+    ``system_file`` names the system yaml directly, anywhere on disk: the
+    as-flown hardware files are maintained in AWETrim
+    (``AWETrim/data/<KITE>/system_flown_<date>.yaml``) and can be used from
+    there instead of the copy in the config folder.
 
     AWETrim convention: the folder (``data/<KITE-NAME>/``) holds
 
@@ -131,20 +136,32 @@ def load_config(config_folder=None):
     candidates = sorted(
         set(folder.glob("system*.yaml")) | set(folder.glob("system*.yml"))
     )
-    if not candidates:
+    if system_file is not None:
+        system_yaml_path = Path(system_file).expanduser().resolve()
+        if not system_yaml_path.exists():
+            raise FileNotFoundError(f"System file does not exist: {system_yaml_path}")
+    elif not candidates:
         raise FileNotFoundError(f"No system*.yaml / system*.yml in {folder}")
-    if len(candidates) == 1:
+    elif len(candidates) == 1:
         system_yaml_path = candidates[0]
     else:
         print("Available system configuration files:")
         for index, path in enumerate(candidates, start=1):
             print(f"{index}: {path.name}")
         selection = (
-            input(f"Select a system file (1-{len(candidates)}) [default: 1]: ").strip()
+            input(
+                f"Select a system file (1-{len(candidates)}) or enter a path "
+                "[default: 1]: "
+            ).strip()
             or "1"
         )
-        system_yaml_path = candidates[int(selection) - 1]
-    print(f"Using system config: {system_yaml_path.name}")
+        if selection.isdigit():
+            system_yaml_path = candidates[int(selection) - 1]
+        else:
+            system_yaml_path = Path(selection).expanduser().resolve()
+            if not system_yaml_path.exists():
+                raise FileNotFoundError(f"System file does not exist: {system_yaml_path}")
+    print(f"Using system config: {system_yaml_path}")
 
     with open(ekf_config_path, "r", encoding="utf-8") as file:
         config_data = yaml.safe_load(file)
@@ -159,7 +176,10 @@ def load_config(config_folder=None):
 
     config_data["kite"] = {
         "model_name": kite_node.get("name", "unknown"),
-        "mass": wing_struct.get("mass", 0.0),
+        # The point mass is everything airborne above the KCU: the wing AND
+        # the bridle, whose weight the wing carries (awesIO keeps them as
+        # separate components). Until 2026-10-29 the bridle was left out.
+        "mass": wing_struct.get("mass", 0.0) + (bridle_struct.get("mass", 0.0) or 0.0),
         "area": wing_struct.get(
             "projected_surface_area", wing_struct.get("planform_surface_area", 0.0)
         ),
