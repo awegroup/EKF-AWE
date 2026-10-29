@@ -176,7 +176,10 @@ def load_config(config_folder=None, system_file=None):
 
     config_data["kite"] = {
         "model_name": kite_node.get("name", "unknown"),
-        "mass": wing_struct.get("mass", 0.0),
+        # The point mass is everything airborne above the KCU: the wing AND
+        # the bridle, whose weight the wing carries (awesIO keeps them as
+        # separate components). Until 2026-10-29 the bridle was left out.
+        "mass": wing_struct.get("mass", 0.0) + (bridle_struct.get("mass", 0.0) or 0.0),
         "area": wing_struct.get(
             "projected_surface_area", wing_struct.get("planform_surface_area", 0.0)
         ),
